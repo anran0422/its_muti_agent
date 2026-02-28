@@ -43,7 +43,8 @@ class IngestionProcessor:
         # 1. 根据文件路径加载得到文档列表
         # a.定义文档加载器（1. 非结构化的文档加载器 MarkDownLoader 2. 文本加载器 TextLoader
         try:
-            text_loader = TextLoader(file_path=md_path)
+            # 尝试使用 UTF-8 编码加载文件
+            text_loader = TextLoader(file_path=md_path, encoding='utf-8')
             # b. 加载文件返回文档列表（TextLoader 返回的文档列表中有且只有一个文档对象）
             documents = text_loader.load()
         except Exception as e:

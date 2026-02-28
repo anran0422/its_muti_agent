@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     CRAWL_OUTPUT_DIR: str = os.path.join(_project_root, "data", "crawl")
     # Using 'data/crawl' as the default location for markdown files
     MD_FOLDER_PATH: str = CRAWL_OUTPUT_DIR
+    TMP_MD_FOLDER_PATH: str = os.path.join(_project_root, "data", "tmp")
     
     # Text splitting configuration
     CHUNK_SIZE: int = 3000
