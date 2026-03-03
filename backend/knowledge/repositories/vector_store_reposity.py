@@ -1,7 +1,11 @@
+import logging
+
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
+from typing import List
+
 from backend.knowledge.config.settings import settings
-import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -77,3 +81,17 @@ class VectorStoreRepository:
             list[list[float]]： 嵌入后的浮点数列表
         """
         return self.embedding.embed_documents(texts)
+
+    def search_similarity_with_scores(self, user_question: str, top_k: int = 5) -> List[tuple[Document, float]]:
+        """
+        相似性检索带文档分数
+        分数（chroma向量数据库）：返回 L2 距离得分（分数越小越相似）
+            不是余弦相似度（越高越相似） 距离得分：1——余弦相似度得分
+        Args:
+            user_question: 用户输入的问题
+            top_k: 返回得分最高的相似文档个数
+
+        Returns:
+            List[tuple[Document, float]]: 返回带有分数的相似文档元组 列表
+        """
+        return self.vector_database.similarity_search_with_score(user_question, top_k)

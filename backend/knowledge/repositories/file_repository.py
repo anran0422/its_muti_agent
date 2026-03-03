@@ -2,6 +2,7 @@ import os
 import hashlib
 from typing import List, Dict, Any
 
+
 class FileRepository:
     @staticmethod
     def get_file_hash(file_path: str) -> str:
