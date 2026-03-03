@@ -56,3 +56,24 @@ class VectorStoreRepository:
             logger.error(f"文档块列表:{documents}保存到向量数据库失败：{str(e)}")
             raise e
 
+    def embed_query(self, text: str) -> list[float]:
+        """
+            对 query 进行向量化
+        Args:
+            text: 输入文本
+
+        Returns:
+            list[float]： 嵌入后的浮点数列表
+        """
+        return self.embedding.embed_query(text)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        """
+            对 字符串列表 进行向量化
+        Args:
+            texts: 输入文本字符串列表
+
+        Returns:
+            list[list[float]]： 嵌入后的浮点数列表
+        """
+        return self.embedding.embed_documents(texts)
