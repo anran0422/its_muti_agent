@@ -1,12 +1,16 @@
 import logging
 
+import jieba
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from typing import List
+from typing import List, Dict, Any
 from langchain_core.documents import Document
 
+from backend.knowledge.utils.markdown_utils import MarkDownUtils
 from backend.knowledge.repositories.vector_store_reposity import VectorStoreRepository
+from backend.knowledge.config.settings import settings
 
 
 class RetrievalService:
@@ -75,7 +79,14 @@ class RetrievalService:
         Returns:
             List[Document]： 相似的 TOP-N 个文档列表
         """
-        pass
+        # 1. 获取指定目录下的文件的标题
+        mds_metadata = MarkDownUtils.collect_md_metadata(settings.CRAWL_OUTPUT_DIR)
+        # 2. 进行标题匹配
+        rough_mds_title = self.rough_ranking(user_question, mds_metadata)
+        # 2.1 关键词匹配（jieba）---> 比较对象：用户输入的问题 vs crawl 目录下的文件标题
+        # 2.2 标题的语义匹配 ---> 比较对象：用户输入的问题 vs crawl md 目录下的
+
+        # 3. 返回指定文档列表
 
     def _deduplicate(self, total_candidates: List[Document]) -> List[Document]:
         """
@@ -99,3 +110,59 @@ class RetrievalService:
             List[Document]：最终指定的 TOP-N 个文档列表
         """
         pass
+
+    def rough_ranking(self, user_question, mds_metadata: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        对标题进行粗排
+        基于 jieba 进行标题的分词匹配
+        Args:
+            user_question: 用户的问题
+            mds_metadata: 所有 md 的元数据（标题【title】， 路径 【path】）
+
+        Returns:
+            List[Dict[str, Any]]：所有 md 的元数据（标题【title】， 路径 【path】， 标题的粗排得分【rough_score】）
+        """
+        # 1. 用户输入问题是否存在
+        if not user_question:
+            return []
+        ROUGH_WORD_WEIGHT = 0.7
+        # 2. 遍历 mds_metadata（所有md的元数据）
+        for md_metadata in mds_metadata:
+            # 2.1 获取 md 标题
+            md_metadata_title = md_metadata["title"]
+
+            # 2.2 判断标题是否存在
+            if not md_metadata_title and not md_metadata_title.strip():
+                continue
+
+            # 2.3 进行分词 && 算得分
+            # 2.3.1 优先字符切 set 交并差 jarcard 算法
+            user_question_char = set(user_question)
+            md_metadata_title_char = set(md_metadata_title)
+            unique_char = user_question_char | md_metadata_title_char
+            char_score = len(user_question_char & md_metadata_title_char) / len(unique_char) if len(
+                unique_char) > 0 else 0
+
+            # 2.3.2 再用 jieba 词项切，影响因素大一些
+            user_question_word = set(jieba.lcut(user_question))
+            md_metadata_title_word = set(jieba.lcut(md_metadata_title))
+            unique_word = user_question_word | md_metadata_title_word
+            word_score = len(user_question_word & md_metadata_title_word) / len(unique_word) if len(
+                unique_word) > 0 else 0
+
+            # 2.3.3 计算粗排分数：字符集 + 词性项级
+            rough_score = word_score * ROUGH_WORD_WEIGHT + char_score * (1 - ROUGH_WORD_WEIGHT)
+
+            md_metadata['rough_score'] = rough_score
+
+        # 3. 根据标题的元数据（rough_score)排序，并且留下前 50 个
+        return sorted(mds_metadata, key=lambda x: x['rough_score'], reverse=True)[:50]
+
+
+if __name__ == '__main__':
+    retrieval_service = RetrievalService()
+
+    result = retrieval_service.rough_ranking("电脑如何开机",
+                                             MarkDownUtils.collect_md_metadata(settings.CRAWL_OUTPUT_DIR))
+    for res in result[:10]:
+        print(res)
