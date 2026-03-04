@@ -57,7 +57,7 @@ class IngestionProcessor:
         # b. 如果内容比较大，分析大内容的数据结构，然后定制切分策略。采用Header rejection：标题注入（保留每一块的业务背景、上下文）
         final_documents_chunks = []
         for doc in documents:
-            if len(doc.page_content) < 1500:
+            if len(doc.page_content) < 3000:
                 final_documents_chunks.append(doc)
             else:
                 documents_chunks_list = self.document_splitter.split_documents(documents)

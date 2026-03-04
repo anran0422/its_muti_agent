@@ -11,6 +11,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from backend.knowledge.utils.markdown_utils import MarkDownUtils
 from backend.knowledge.repositories.vector_store_reposity import VectorStoreRepository
+from backend.knowledge.services.ingestion.ingestion_prosessor import IngestionProcessor
 from backend.knowledge.config.settings import settings
 
 
@@ -21,6 +22,7 @@ class RetrievalService:
 
     def __init__(self):
         self.chroma_vector = VectorStoreRepository()
+        self.ingestion_processor = IngestionProcessor()  # 切分器
 
     def retrieve(self, user_question: str) -> List[Document]:
         """
@@ -89,7 +91,30 @@ class RetrievalService:
         rough_mds_metadata = self.rough_ranking(user_question, mds_metadata)
         fine_mds_metadata = self.fine_ranking(user_question, rough_mds_metadata)
 
-        # 3. 返回指定文档列表
+        # 3. 处理文档（根据标题读取标题对应的文档内容----Document（page_content, metadata={}）
+        based_title_candidates = []
+        for fine_md_metadata in fine_mds_metadata:
+            try:
+                # 3.1 打开文件
+                with open(fine_md_metadata['path'], "r", encoding="utf-8") as f:
+                    content = f.read().strip()
+
+                # 3.2 判断 content 长度
+                if len(content) < 3000:
+                    # 不切分
+                    doc = Document(page_content=content, metadata={
+                        "path": fine_md_metadata['path'],
+                        "title": fine_md_metadata['title']
+                    })
+                    based_title_candidates.append(doc)
+                else:
+                    doc_chunks = self._deal_long_title_content(content, fine_md_metadata, user_question)
+                    based_title_candidates.extend(doc_chunks)
+            except Exception as e:
+                logger.error(f"打开文件失败：{e}")
+
+        # 4. 返回指定文档列表
+        return based_title_candidates
 
     def _deduplicate(self, total_candidates: List[Document]) -> List[Document]:
         """
@@ -210,6 +235,56 @@ class RetrievalService:
 
         simi_mds_metadata = sorted(rough_mds_metadata, key=lambda x: x['final_score'], reverse=True)[:5]
         return simi_mds_metadata
+
+    def _deal_long_title_content(self, content: str, fine_md_metadata: Dict[str, Any], user_question: str) -> List[
+        Document]:
+        """
+        处理标题对应的长文本
+        切分 --> 文档块 --> 算文档块和问题的相似度
+        Args:
+            content: 长文本
+            fine_md_metadata: 长文本对应的元数据
+            user_question: 用户输入的问题
+
+        Returns:
+            List[Document]: 和问题相似的文档快（chunk）
+        """
+        # 1. 对长文本切分（可以换合适切分器）
+        chunks = self.ingestion_processor.document_splitter.split_text(content)
+
+        # 2. 获取对应的标题
+        doc_chunks_title = fine_md_metadata['title']
+
+        # 3. 标题注入到文档块中
+        doc_chunks_inject_title = [f"文档来源:{doc_chunks_title}" + doc_chunk for doc_chunk in chunks]
+
+        # 4. 对问题向量化
+        question_embedding = self.chroma_vector.embed_query(user_question)
+
+        # 5. 对切分后的文档块向量化
+        doc_chunk_embeddings = self.chroma_vector.embed_documents(doc_chunks_inject_title)
+
+        # 6. 计算相似性 doc_chunks_similarity [0.8, 0.6, 0.7, 0.1, 0.9]
+        doc_chunks_similarity = cosine_similarity([question_embedding], doc_chunk_embeddings).flatten()
+
+        # 7. 获取3个相似性分数最高的三个索引 argsort -> [3,1,2,0,4] -> [4,0,2]
+        top_doc_chunks_indices = doc_chunks_similarity.argsort()[-3:][::-1]
+
+        # 8. 构建最终的文档对象列表
+        docs = []
+        for i, chunk_idx in enumerate(top_doc_chunks_indices):
+            doc = Document(
+                page_id=chunks[chunk_idx],
+                metadata={
+                    "path": fine_md_metadata['path'],
+                    "title": fine_md_metadata['title'],
+                    "chunk_index": int(chunk_idx),
+                    "similarity": float(doc_chunks_similarity[chunk_idx])
+                }
+            )
+            docs.append(doc)
+
+        return docs
 
 
 if __name__ == '__main__':
