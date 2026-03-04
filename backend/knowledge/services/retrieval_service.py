@@ -147,13 +147,54 @@ class RetrievalService:
     def _reranking(self, unique_candidates: List[Document], user_question: str) -> List[Document]:
         """
         重新计算打分 && 排序
+        长文档已经进行了 cosine_similarity() 的计算，无需再次打分
+        对第一路的文档和第二路的短文档重新计算
         Args:
             unique_candidates: 唯一的候选文档列表
             user_question: 用户输入的问题
         Returns:
             List[Document]：最终指定的 TOP-N 个文档列表
         """
-        pass
+        # 1. 检查文档是否存在
+        if not unique_candidates:
+            return []
+
+        # 2. 遍历去重并且合并后的文档列表
+        need_embedding_docs = []
+        need_embedding_candidates_indices = []
+        score_doc = []
+        for candidate_index, unique_candidate in enumerate(unique_candidates):
+            # 2.1 如何去判断 第二路长文档、第二路短文档 和 第一路文档 ？
+            if "chunk_index" in unique_candidate.metadata and "similarity" in unique_candidate.metadata:
+                score_doc.append((unique_candidate, unique_candidate.metadata["similarity"]))
+
+            # 2.2 第二路短文档和第一路文档
+            else:
+                need_embedding_docs.append(unique_candidate)
+                need_embedding_candidates_indices.append(candidate_index)
+
+        # 3. 处理需要重新计算分数的文档
+        if need_embedding_docs:
+            # 3.1 计算用户问题的向量
+            question_embedding = self.chroma_vector.embed_query(user_question)
+            # 3.2 获取需要向量的文档内容
+            embedding_docs_content = ["文档来源:" + doc.metadata['title'] + doc.page_content for doc in
+                                      need_embedding_docs]
+
+            # 3.3 计算文档的向量
+            doc_embeddings = self.chroma_vector.embed_documents(embedding_docs_content)
+
+            # 3.4 计算相似性得分
+            similarity = cosine_similarity([question_embedding, doc_embeddings]).flatten()
+
+            # 3.5 封装到带得分的文档列表
+            for idx, candidate_index in enumerate(need_embedding_candidates_indices):
+                score_doc.append((need_embedding_docs[candidate_index], similarity[idx]))
+        # 4. 排序
+        sorted_docs = sorted(unique_candidates, key=lambda x: x[1], reverse=True)
+
+        # 5. 返回 Top-N
+        return [doc for doc,_ in sorted_docs]
 
     def rough_ranking(self, user_question, mds_metadata: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
