@@ -126,7 +126,23 @@ class RetrievalService:
         Returns:
             List[Document]： 唯一的文档列表
         """
-        pass
+        # 1. 候选集合为空
+        if not total_candidates:
+            return []
+
+        # 2. 定义set集合
+        seen = set()
+        unique_candidates = []
+
+        # 3. 遍历合并后的每一个文档列表
+        for document in total_candidates:
+            key = (document.metadata['title'], document.page_content[:100])
+            if key not in seen:
+                seen.add(key)
+                unique_candidates.append(document)
+
+        # 4. 返回唯一的
+        return unique_candidates
 
     def _reranking(self, unique_candidates: List[Document], user_question: str) -> List[Document]:
         """

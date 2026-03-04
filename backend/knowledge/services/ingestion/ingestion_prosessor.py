@@ -1,9 +1,12 @@
-from backend.knowledge.repositories.vector_store_reposity import VectorStoreRepository
+import logging
+import os
+
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores.utils import filter_complex_metadata
-import logging
-import os
+
+from backend.knowledge.repositories.vector_store_reposity import VectorStoreRepository
+from backend.knowledge.utils.markdown_utils import MarkDownUtils
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -50,6 +53,10 @@ class IngestionProcessor:
         except Exception as e:
             logger.error(f"文件：{md_path}没有加载到，原因：{str(e)}")
             raise Exception(f"文件：{md_path}没有加载到，原因：{str(e)}")
+
+        # 添加标题到元数据中
+        for doc in documents:
+            doc.metadata['title'] = MarkDownUtils.extract_title(file_path=md_path)
 
         # 2. 切分文档得到文档块列表
         # 2.1 动态机制切分
