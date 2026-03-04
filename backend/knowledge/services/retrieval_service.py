@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 from typing import List, Dict, Any
 from langchain_core.documents import Document
+from sklearn.metrics.pairwise import cosine_similarity
 
 from backend.knowledge.utils.markdown_utils import MarkDownUtils
 from backend.knowledge.repositories.vector_store_reposity import VectorStoreRepository
@@ -19,7 +20,7 @@ class RetrievalService:
     """
 
     def __init__(self):
-        self.vector_store_repository = VectorStoreRepository()
+        self.chroma_vector = VectorStoreRepository()
 
     def retrieve(self, user_question: str) -> List[Document]:
         """
@@ -60,7 +61,7 @@ class RetrievalService:
             List[Document]： 相似的 TOP-N 个文档列表
         """
         # 1. 返回带分数的文档列表
-        documents_with_score = self.vector_store_repository.search_similarity_with_scores(user_question)
+        documents_with_score = self.chroma_vector.search_similarity_with_scores(user_question)
 
         # 2. TODO 不用距离得分
         base_vector_candidates = []
@@ -81,10 +82,12 @@ class RetrievalService:
         """
         # 1. 获取指定目录下的文件的标题
         mds_metadata = MarkDownUtils.collect_md_metadata(settings.CRAWL_OUTPUT_DIR)
+
         # 2. 进行标题匹配
-        rough_mds_title = self.rough_ranking(user_question, mds_metadata)
         # 2.1 关键词匹配（jieba）---> 比较对象：用户输入的问题 vs crawl 目录下的文件标题
         # 2.2 标题的语义匹配 ---> 比较对象：用户输入的问题 vs crawl md 目录下的
+        rough_mds_metadata = self.rough_ranking(user_question, mds_metadata)
+        fine_mds_metadata = self.fine_ranking(user_question, rough_mds_metadata)
 
         # 3. 返回指定文档列表
 
@@ -158,11 +161,66 @@ class RetrievalService:
         # 3. 根据标题的元数据（rough_score)排序，并且留下前 50 个
         return sorted(mds_metadata, key=lambda x: x['rough_score'], reverse=True)[:50]
 
+    def fine_ranking(self, user_question: str, rough_mds_metadata: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        对标题进行精排
+        基于嵌入模型相似性以及 cosine_similarity()
+        Args:
+            rough_mds_metadata: 粗排后的 md 元数据
+            user_question: 用户输入的问题
+
+        Returns:
+            List[Dict[str, Any]]: 带精排分数的元数据
+        """
+        # 1. 判断粗排元数据
+        if not rough_mds_metadata:
+            return []
+
+        # 两个二维矩阵（X[样本数] Y[样本质量]）
+        # 2. 对问题向量化
+        question_embedding = self.chroma_vector.embed_query(user_question)
+
+        # 3. 获取粗排后的标题
+        rough_title = [md_metadata['title'] for md_metadata in rough_mds_metadata]
+
+        # 4. 标题的向量值
+        rough_title_embeddings = self.chroma_vector.embed_documents(rough_title)
+
+        # 5. 计算问题和粗排标题的相似度（余弦相似度）
+        # X:1 Y[1,2,3,4,5] similarity=[0.1, 0.4, 0.01, 0.6, 0.3][-1,0]
+        similarity = cosine_similarity([question_embedding], rough_title_embeddings).flatten()
+
+        # 6. 遍历粗排元数据
+        ROUGH_WEIGHT = 0.3
+        SIM_WEIGHT = 0.7
+        for index, md_metadata in enumerate(rough_mds_metadata):
+            # a. 获取精排分数（归一化处理）
+            simi = similarity[index]
+            if simi < 0:
+                simi = 0
+            # b. 获取粗排
+            rough_score = md_metadata['rough_score']
+
+            # c. 加权求取最终分数
+            final_score = rough_score * ROUGH_WEIGHT + simi * SIM_WEIGHT
+
+            # d. 存放到 md_metadata 中
+            md_metadata['simi_score'] = simi
+            md_metadata['final_score'] = final_score
+
+        simi_mds_metadata = sorted(rough_mds_metadata, key=lambda x: x['final_score'], reverse=True)[:5]
+        return simi_mds_metadata
+
 
 if __name__ == '__main__':
     retrieval_service = RetrievalService()
 
-    result = retrieval_service.rough_ranking("电脑如何开机",
-                                             MarkDownUtils.collect_md_metadata(settings.CRAWL_OUTPUT_DIR))
-    for res in result[:10]:
-        print(res)
+    rough_ranking_res = retrieval_service.rough_ranking("电脑如何开机",
+                                                        MarkDownUtils.collect_md_metadata(settings.CRAWL_OUTPUT_DIR))
+    for rough in rough_ranking_res[:10]:
+        print(f"粗排---{rough}")
+
+    simi_ranking_res = retrieval_service.fine_ranking("电脑如何开机", rough_ranking_res[:10])
+
+    for simi in simi_ranking_res:
+        print(f"精排---{simi}")
