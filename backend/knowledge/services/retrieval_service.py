@@ -1,6 +1,7 @@
 import logging
 
 import jieba
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -136,7 +137,9 @@ class RetrievalService:
 
         # 3. 遍历合并后的每一个文档列表
         for document in total_candidates:
-            key = (document.metadata['title'], document.page_content[:100])
+            # 去重 打开的文档 和 向量库中原本的内容
+            clean_content = re.sub(r'^文档来源:.*?(?=(\n|#))', '', document.page_content, flags=re.DOTALL).strip()
+            key = (document.metadata['title'], clean_content[:100])
             if key not in seen:
                 seen.add(key)
                 unique_candidates.append(document)
