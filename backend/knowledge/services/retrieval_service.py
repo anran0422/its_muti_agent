@@ -47,7 +47,7 @@ class RetrievalService:
         unique_candidates = self._deduplicate(total_candidates)
 
         # 5. 重新打分排序
-        top_documents = self._reranking(unique_candidates)
+        top_documents = self._reranking(user_question, unique_candidates)
 
         # 6. 返回指定 TOP-N 个相似的文档列表
         return top_documents
@@ -144,7 +144,7 @@ class RetrievalService:
         # 4. 返回唯一的
         return unique_candidates
 
-    def _reranking(self, unique_candidates: List[Document], user_question: str) -> List[Document]:
+    def _reranking(self, user_question: str, unique_candidates: List[Document]) -> List[Document]:
         """
         重新计算打分 && 排序
         长文档已经进行了 cosine_similarity() 的计算，无需再次打分
@@ -185,16 +185,16 @@ class RetrievalService:
             doc_embeddings = self.chroma_vector.embed_documents(embedding_docs_content)
 
             # 3.4 计算相似性得分
-            similarity = cosine_similarity([question_embedding, doc_embeddings]).flatten()
+            similarity = cosine_similarity([question_embedding], doc_embeddings).flatten()
 
             # 3.5 封装到带得分的文档列表
             for idx, candidate_index in enumerate(need_embedding_candidates_indices):
-                score_doc.append((need_embedding_docs[candidate_index], similarity[idx]))
-        # 4. 排序
-        sorted_docs = sorted(unique_candidates, key=lambda x: x[1], reverse=True)
+                score_doc.append((unique_candidates[candidate_index], similarity[idx]))
+        # 4. 排序（根据相似度分数降序排列）
+        sorted_docs = sorted(score_doc, key=lambda x: x[1], reverse=True)
 
         # 5. 返回 Top-N
-        return [doc for doc,_ in sorted_docs]
+        return [doc for doc, _ in sorted_docs][:2]
 
     def rough_ranking(self, user_question, mds_metadata: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -347,12 +347,17 @@ class RetrievalService:
 if __name__ == '__main__':
     retrieval_service = RetrievalService()
 
-    rough_ranking_res = retrieval_service.rough_ranking("电脑如何开机",
-                                                        MarkDownUtils.collect_md_metadata(settings.CRAWL_OUTPUT_DIR))
-    for rough in rough_ranking_res[:10]:
-        print(f"粗排---{rough}")
+    # rough_ranking_res = retrieval_service.rough_ranking("电脑如何开机",
+    #                                                     MarkDownUtils.collect_md_metadata(settings.CRAWL_OUTPUT_DIR))
+    # for rough in rough_ranking_res[:10]:
+    #     print(f"粗排---{rough}")
+    #
+    # simi_ranking_res = retrieval_service.fine_ranking("电脑如何开机", rough_ranking_res[:10])
+    #
+    # for simi in simi_ranking_res:
+    #     print(f"精排---{simi}")
 
-    simi_ranking_res = retrieval_service.fine_ranking("电脑如何开机", rough_ranking_res[:10])
-
-    for simi in simi_ranking_res:
-        print(f"精排---{simi}")
+    res = retrieval_service.retrieve("如何安装联想的一键影音") # 效果不好原因
+    # res = retrieval_service.retrieve("开机后没有反应")
+    for r in res:
+        print(r)
