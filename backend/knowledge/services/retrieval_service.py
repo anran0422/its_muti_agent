@@ -334,7 +334,7 @@ class RetrievalService:
         docs = []
         for i, chunk_idx in enumerate(top_doc_chunks_indices):
             doc = Document(
-                page_id=chunks[chunk_idx],
+                page_content=chunks[chunk_idx],
                 metadata={
                     "path": fine_md_metadata['path'],
                     "title": fine_md_metadata['title'],

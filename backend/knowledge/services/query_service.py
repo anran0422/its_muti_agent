@@ -12,7 +12,8 @@ class QueryService:
         self.llm = ChatOpenAI(
             model_name=settings.MODEL,
             openai_api_key=settings.API_KEY,
-            openai_api_base=settings.BASE_URL
+            openai_api_base=settings.BASE_URL,
+            temperature=0  # 作用：控制模型输出的随机度，尽最大的努力（影响因素还有硬件(并行GPU：精度变乱)、网络（moe专家架构））
         )
 
     def generate_answer(self, user_question: str, retrival_context: List[Document]) -> str:
@@ -30,7 +31,10 @@ class QueryService:
         if not retrival_context:
             return "未检索到任何相关的文档，无法提供回复"
 
-        # 2. 定义提示词
+        # 2. 处理检索到的知识内容
+        retrival_context = "\n\n".join([f"资料{index+1}:{document}" for index, document in enumerate(retrival_context)])
+
+        # 3. 定义提示词
         prompt = f"""
                 你是一位经验丰富的高级技术支持专家。请基于下方的【参考资料】回答【用户问题】。
 
@@ -57,8 +61,8 @@ class QueryService:
                  【开始回答】：
                  """
 
-        # 3. 调用模型
+        # 4. 调用模型
         llm_response = self.llm.invoke(prompt)
 
-        # 4. 返回模型的结果
+        # 5. 返回模型的结果
         return llm_response.content

@@ -37,7 +37,7 @@ class VectorStoreRepository:
         Args:
             self:
             documents: 切分之后的文档快
-            batch_size: 分批保存批次大小
+            batch_size: 分批保存批次大小（最大允许16）
 
         Returns:
             int： 成功添加到向量数据库中文档块的数量
@@ -55,7 +55,7 @@ class VectorStoreRepository:
                 self.vector_database.add_documents(bath)
                 documents_chunks_added += len(bath)
                 logger.info(f"成功将文档块：{documents_chunks_added}/{total_documents_chunks}保存到向量数据库...")
-                return documents_chunks_added
+            return documents_chunks_added
         except Exception as e:
             logger.error(f"文档块列表:{documents}保存到向量数据库失败：{str(e)}")
             raise e
