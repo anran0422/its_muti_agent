@@ -7,11 +7,11 @@ from fastapi import HTTPException
 from fastapi import APIRouter, File, UploadFile
 from fastapi.concurrency import run_in_threadpool
 
-from backend.knowledge.schemas.schema import UploadResponse, QueryResponse, QueryRequest
-from backend.knowledge.services.ingestion.ingestion_prosessor import IngestionProcessor
-from backend.knowledge.config.settings import settings
-from backend.knowledge.services.query_service import QueryService
-from backend.knowledge.services.retrieval_service import RetrievalService
+from schemas.schema import UploadResponse, QueryResponse, QueryRequest
+from services.ingestion.ingestion_prosessor import IngestionProcessor
+from config.settings import settings
+from services.query_service import QueryService
+from services.retrieval_service import RetrievalService
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -86,6 +86,11 @@ async def query(request: QueryRequest) -> QueryResponse:
     Returns:
         QueryResponse： 模型的查询结果以及问题
     """
+    import time
+    start_time = time.time()
+    logger.info(f"[服务端] ========== 收到查询请求 ==========")
+    logger.info(f"[服务端] 问题: {request.question}")
+    
     try:
         # 1. 判断用户问题
         user_question = request.question
@@ -93,12 +98,20 @@ async def query(request: QueryRequest) -> QueryResponse:
             raise HTTPException(status_code=500, detail="查询问题不存在")
 
         # 2. 调用检索器的检索方法
+        logger.info(f"[服务端] 开始检索...")
+        retrieval_start = time.time()
         retrieval_context = retrieval_service.retrieve(user_question)
+        logger.info(f"[服务端] 检索完成, 耗时: {time.time() - retrieval_start:.2f}秒, 找到 {len(retrieval_context)} 个文档")
 
         # 3. 调用查询器的查询方法
+        logger.info(f"[服务端] 开始生成答案...")
+        answer_start = time.time()
         answer = query_service.generate_answer(user_question, retrieval_context)
+        logger.info(f"[服务端] 答案生成完成, 耗时: {time.time() - answer_start:.2f}秒")
 
         # 4. 封装到响应数据模型
+        total_time = time.time() - start_time
+        logger.info(f"[服务端] ========== 请求完成, 总耗时: {total_time:.2f}秒 ==========")
         return QueryResponse(
             question=user_question,
             answer=answer

@@ -1,10 +1,10 @@
 import os
 import time
-from backend.knowledge.services.crawler.client import KnowledgeAPIClient
-from backend.knowledge.services.crawler.parser import HtmlParser
-from backend.knowledge.utils.text_utils import  TextUtils
-from backend.knowledge.config.settings import  settings
-from backend.knowledge.repositories.file_repository import FileRepository
+from services.crawler.client import KnowledgeAPIClient
+from services.crawler.parser import HtmlParser
+from utils.text_utils import  TextUtils
+from config.settings import  settings
+from repositories.file_repository import FileRepository
 
 
 def  main():

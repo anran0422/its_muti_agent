@@ -5,7 +5,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 from typing import List
 
-from backend.knowledge.config.settings import settings
+from config.settings import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

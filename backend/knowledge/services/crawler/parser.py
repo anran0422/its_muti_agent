@@ -1,5 +1,5 @@
 from typing import Dict,Any
-from backend.knowledge.utils.text_utils import TextUtils
+from utils.text_utils import TextUtils
 
 class HtmlParser:
     """专门负责解析 HTML 格式数据成为 Markdown 格式的数据"""

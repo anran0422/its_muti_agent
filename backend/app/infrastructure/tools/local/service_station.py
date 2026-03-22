@@ -4,7 +4,7 @@ import stun
 from pymysql.cursors import DictCursor
 from agents import function_tool
 from infrastructure.tools.mcp.servers import baidu_map_mcp
-from backend.app.infrastructure.logging.logger import logger
+from infrastructure.logging.logger import logger
 import math
 
 

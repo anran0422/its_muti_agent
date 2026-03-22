@@ -10,10 +10,10 @@ from typing import List, Dict, Any
 from langchain_core.documents import Document
 from sklearn.metrics.pairwise import cosine_similarity
 
-from backend.knowledge.utils.markdown_utils import MarkDownUtils
-from backend.knowledge.repositories.vector_store_reposity import VectorStoreRepository
-from backend.knowledge.services.ingestion.ingestion_prosessor import IngestionProcessor
-from backend.knowledge.config.settings import settings
+from utils.markdown_utils import MarkDownUtils
+from repositories.vector_store_reposity import VectorStoreRepository
+from services.ingestion.ingestion_prosessor import IngestionProcessor
+from config.settings import settings
 
 
 class RetrievalService:

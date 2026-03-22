@@ -3,7 +3,7 @@
 """
 import uvicorn
 from fastapi import FastAPI
-from backend.knowledge.api.routers import router
+from api.routers import router
 import logging
 
 logging.basicConfig(level=logging.INFO)

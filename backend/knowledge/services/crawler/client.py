@@ -1,8 +1,8 @@
 import os
 from http.client import HTTPException
-from backend.knowledge.services.crawler.parser import HtmlParser
+from services.crawler.parser import HtmlParser
 import requests
-from backend.knowledge.config.settings import settings
+from config.settings import settings
 
 
 class KnowledgeAPIClient:

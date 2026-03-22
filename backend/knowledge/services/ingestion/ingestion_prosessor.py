@@ -5,8 +5,8 @@ from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores.utils import filter_complex_metadata
 
-from backend.knowledge.repositories.vector_store_reposity import VectorStoreRepository
-from backend.knowledge.utils.markdown_utils import MarkDownUtils
+from repositories.vector_store_reposity import VectorStoreRepository
+from utils.markdown_utils import MarkDownUtils
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
