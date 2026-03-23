@@ -6,7 +6,7 @@ from infrastructure.logging.logger import logger
 from config.settings import settings
 
 
-# @function_tool
+@function_tool
 async def query_knowledge(question: str) -> Dict:
     """
        查询电脑问题知识库服务,用于检索与用户问题相关的技术文档或解决方案。
