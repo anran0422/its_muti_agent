@@ -8,7 +8,7 @@ from infrastructure.tools.local.service_station import (
     query_nearest_repair_shops_by_coords
 )
 
-from infrastructure.tools.mcp.servers import (
+from infrastructure.tools.mcp.mcp_servers import (
     baidu_map_mcp,
 )
 from infrastructure.ai.prompt_loader import load_prompt
@@ -79,7 +79,7 @@ async def run_single_test(case_name: str, input_text: str):
 async def main():
     # 服务站和地图测试案例
     test_cases = [
-        ("Case 1服务站 - 起点不明确 终点明确", "我想去小米之家修电脑"),
+        # ("Case 1服务站 - 起点不明确 终点明确", "我想去小米之家修电脑"),
         # ("Case 2服务站 - 起点不明确 终点明确", "我想去联想thinkpad电脑售后维修服务中心"),
         # ("Case 3服务站 - 起点 终点明确", "从昌平区回龙观到联想thinkpad电脑售后维修服务中心如何走"),
         # ("Case 4服务站 - 起点不明确 终点不明确 ", "附近有官方维修点吗？"),
@@ -89,7 +89,7 @@ async def main():
         # ("Case   7普通 POI - 起点 终点都明确", "从昌平区回龙观到天安门广场怎么走"),
 
         # ("Case 7技术问题", "电脑蓝屏了怎么办？"),  # 应拒绝
-        # ("Case 8闲聊", "你好啊"),  # 应拒绝
+        ("Case 8闲聊", "你好啊"),  # 应拒绝
     ]
 
     for name, question in test_cases:
