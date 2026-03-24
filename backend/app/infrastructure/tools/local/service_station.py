@@ -3,7 +3,7 @@ import json
 import stun
 from pymysql.cursors import DictCursor
 from agents import function_tool
-from infrastructure.tools.mcp.servers import baidu_map_mcp
+from infrastructure.tools.mcp.mcp_servers import baidu_map_mcp
 from infrastructure.logging.logger import logger
 import math
 
@@ -34,6 +34,7 @@ def get_ip_via_stun():
         [辅助函数] 获取本机公网 IP
         注意：在服务器部署时，这获取的是服务器机房 IP。
         如果要获取终端用户 IP，建议使用 ContextVars 从 HTTP Header 中透传。
+        开发期间 ---> 前端请求的时候携带过来 ---> FastAPI 的request 携带过来 --- 注入到工具中让工具使用
     """
 
     try:
@@ -55,7 +56,8 @@ async def resolve_user_location_from_text(
     - 仅用于获取**起点**，不可作为终点使用。
 
     Args:
-        user_input (str): 用户提到的**明确地名**。⚠️重要：如果用户只说了“附近”、“这里”、“我的位置”等相对方位词，请**留空**此参数（传空字符串），不要填入这些词。
+        user_input (str): 用户提到的**明确地名**。⚠
+        ️重要：如果用户只说了“附近”、“这里”、“我的位置”等相对方位词，请**留空**此参数（传空字符串），不要填入这些词。
 
     返回 JSON 字符串：
     {
@@ -244,7 +246,7 @@ def query_nearest_repair_shops_by_coords(lat: float, lng: float, limit: int = 3)
         LIMIT %s
         """
 
-        # 2. 执行SQL (lat, lng, lat (起点精度 起点维度 起点精度))
+        # 2. 执行SQL (lat, lng, lat (起点经度 起点纬度 起点经度))
         cursor.execute(sql, (lat, lng, lat, limit))
         rows = cursor.fetchall()
 

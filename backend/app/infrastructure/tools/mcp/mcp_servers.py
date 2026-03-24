@@ -5,7 +5,7 @@ from config.settings import settings
 from agents.mcp import MCPServerSse
 from typing import Dict, Any
 
-# 1. 定义百炼的通用搜索客户端
+# 1. 定义百炼的通用网络搜索客户端
 search_mcp_client = MCPServerSse(
     name="通用联网搜索",
     params={
@@ -13,6 +13,18 @@ search_mcp_client = MCPServerSse(
         "headers": {
             "Authorization": f"Bearer {settings.DASHSCOPE_API_KEY}"
         },
+        "timeout": 60,  # 客户端和 mcp 服务端建立连接的最大时间 要小一些
+        "sse_read_timeout": 60 * 30  # 客户端接收 mcp 服务端数据包的最大等待时间 要大一些
+    },
+    client_session_timeout_seconds=60 * 10,  # 客户端基于会话级别的超时时间
+    cache_tools_list=True
+)
+
+# 定义百度地图相关的MCP客户端
+baidu_map_mcp = MCPServerSse(
+    name="百度地图MCP",
+    params={
+        "url": f"https://mcp.map.baidu.com/sse?ak={settings.BAIDUMAP_AK}",
         "timeout": 60,  # 客户端和 mcp 服务端建立连接的最大时间 要小一些
         "sse_read_timeout": 60 * 30  # 客户端接收 mcp 服务端数据包的最大等待时间 要大一些
     },
@@ -73,8 +85,10 @@ async def run_mcp_call(
             if hasattr(content, 'text'):
 
                 # 尝试解析 JSON 字符串以便美化打印
-                json_res = json.loads(content.text)
-                print(json.dumps(json_res, indent=2, ensure_ascii=False))
+                # json_res = json.loads(content.text)
+                # print(json.dumps(json_res, indent=2, ensure_ascii=False))
+                json_res = content.text
+                print(json_res)
 
             else:
                 print(f" [Non-Text]: {content}")
@@ -105,6 +119,17 @@ async def test_bailian_search():
         tool_args={"query": "今天沈阳的天气怎么样"}
     )
 
+async def test_baidu_map():
+    """
+    测试百度地图 (使用全局 baidu_mcp)
+    """
+    await run_mcp_call(
+        mcp_instance=baidu_map_mcp,
+        tool_name="map_uri",  # (地理位置编码)
+        tool_args={
+            "service": "search",
+        }
+    )
 
 # ==============================================================================
 # 4. 主程序入口
@@ -112,8 +137,11 @@ async def test_bailian_search():
 async def main():
     # 你可以在这里注释掉不需要跑的测试
 
-    # 任务 1
-    await test_bailian_search()
+    # 任务 1：测试百炼
+    # await test_bailian_search()
+
+    # 任务 2：测试百度地图
+    await test_baidu_map()
 
 
 if __name__ == '__main__':
