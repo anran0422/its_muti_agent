@@ -130,8 +130,9 @@ class SessionService:
             return
 
         # 2. 保存
+        target_session_id = session_id if session_id else self.DEFAULT_SESSION_ID
         try:
-            self._repo.save_session(user_id, session_id, chat_history)
+            self._repo.save_session(user_id, target_session_id, chat_history)
         except Exception as e:
             logger.error(f"保存角色 {user_id} 会话 {session_id} 文件失败：{str(e)}")
             return
