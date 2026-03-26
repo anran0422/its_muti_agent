@@ -67,7 +67,7 @@ class SessionService:
             # 历史不存在，初始化一个会话结构
             if session_history is None:
                 # 构建一个新的结构
-                return self._init_system_msg_instruct(session_id)
+                return self._init_system_msg_instruct(target_session_id)
             return session_history
         except Exception as e:
             logger.error(f"加载会话历史 {session_id} 失败 {str(e)}")
@@ -136,6 +136,67 @@ class SessionService:
         except Exception as e:
             logger.error(f"保存角色 {user_id} 会话 {session_id} 文件失败：{str(e)}")
             return
+
+    def get_all_sessions_memory(self, user_id: str) -> List[Dict[str, Any]]:
+        """获取并格式化用户的所有会话列表（用于前端侧边栏展示）。
+
+        Args:
+            user_id: 用户唯一标识。
+
+        Returns:
+            List[Dict]: 按创建时间倒序排列的会话列表。
+            格式示例:
+            [
+                {
+                    "session_id": "...",
+                    "create_time": "...",
+                    "memory": [...],
+                    "total_messages": 5
+                }, ...
+            ]
+        """
+        # 1. 从 Repo 获取原始元数据
+        # 类型提示: List[Tuple[session_id, create_time, data_or_error]]
+        raw_sessions = self._repo.get_all_sessions_metadata(user_id)
+
+        formatted_sessions = []
+
+        for session_id, create_time, data_or_error in raw_sessions:
+            session_item = {
+                "session_id": session_id,
+                "create_time": create_time,
+            }
+
+            # 2. 处理可能的读取错误 (隔离异常，防止一个文件损坏导致整个列表挂掉)
+            if isinstance(data_or_error, Exception):
+                logger.error(
+                    "读取会话 %s 失败: %s", session_id, str(data_or_error)
+                )
+                session_item.update({
+                    "memory": [],
+                    "total_messages": 0,
+                    "error": "无法读取会话数据",
+                })
+            else:
+                # 3. 正常数据处理：过滤 System 消息，只展示用户可见内容
+                memory = data_or_error
+                user_visible_memory = [
+                    msg for msg in memory if msg.get("role") != "system"
+                ]
+                session_item.update({
+                    "memory": user_visible_memory,
+                    "total_messages": len(user_visible_memory),
+                })
+
+            formatted_sessions.append(session_item)
+
+        # 4. 排序：按时间倒序（最新的在最前）
+        formatted_sessions.sort(
+            key=lambda x: x.get("create_time") or "",
+            reverse=True
+        )
+
+        return formatted_sessions
 
 
 # 全局单例
