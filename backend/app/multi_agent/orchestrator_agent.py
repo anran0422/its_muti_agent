@@ -4,7 +4,7 @@ from agents import (
     ModelSettings,
     Runner
 )
-from infrastructure.ai.openai_client import sub_model
+from infrastructure.ai.openai_client import sub_model,main_model
 from infrastructure.ai.prompt_loader import load_prompt
 from multi_agent.agent_factory import AGENT_TOOLS
 from infrastructure.tools.mcp.mcp_servers import search_mcp_client, baidu_map_mcp
@@ -14,6 +14,8 @@ from contextlib import AsyncExitStack
 orchestrator_agent = Agent(
     name="主调度智能体",
     instructions=load_prompt("orchestrator"),
+    # 查看思考过程，切换这个
+    # model=main_model,
     model=sub_model,
     model_settings=ModelSettings(
         temperature=0,
